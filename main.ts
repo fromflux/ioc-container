@@ -41,32 +41,45 @@ class Shipper implements IShipper {
 // ------------------------------------------
 
 class Injector {
+  private static instance: Injector;
+
   private map = new Map();
 
-  register(interfaceName: string, className: any) {
+  private constructor() { }
+
+  static getInstance(): Injector {
+    if (!Injector.instance) {
+      Injector.instance = new Injector();
+    }
+    return Injector.instance;
+  }
+
+  public register(interfaceName: string, className: any) {
     this.map.set(interfaceName, className);
   }
 
-  create(interfaceName: string, args?: []) {
+  public create(interfaceName: string, args?: []) {
     const Object = this.map.get(interfaceName);
     return new Object(args);
   }
 }
 
-function inject<T extends { new(...args: any[]): {} }>(...injectables: any[]) {
-  return (objConstructor: T) => {
-    return class extends objConstructor {
-      constructor(...args: any[]) {
-        super(...args);
-
-        injectables.forEach(inj => {
-          this[inj.name] = injector.create(inj.type);
-        });
-      }
-    }
+function inject(...injectables: any[]) {
+  return function (target: Function): void {
+    injectables.forEach(inj => {
+      Object.defineProperty(target.prototype, inj.name, {
+        value: Injector.getInstance().create(inj.type)
+      });
+    });
   }
 }
 
+// ------------------------------------------
+
+const injector = Injector.getInstance();
+
+injector.register('IShipper', Shipper);
+injector.register('IValidator', Validator);
 
 // ------------------------------------------
 
@@ -75,8 +88,8 @@ function inject<T extends { new(...args: any[]): {} }>(...injectables: any[]) {
   { name: 'shipper', type: 'IShipper' },
 )
 class Processor implements IProcessor {
-  private validator: IValidator;
-  private shipper: IShipper;
+  private validator!: IValidator;
+  private shipper!: IShipper;
   private name: string;
 
   constructor(name: string) {
@@ -84,21 +97,15 @@ class Processor implements IProcessor {
   }
 
   public process(order: IOrder): void {
-    console.log('processor name: ', this.name)
     if (this.validator.validate(order)) {
       this.shipper.ship(order);
     }
   }
 }
 
-// ------------------------------------------
-
-const injector = new Injector();
-
-injector.register('IShipper', Shipper);
-injector.register('IValidator', Validator);
-
 const myProcessor = new Processor('test');
+
+console.log('myProcessor', myProcessor)
 
 const myOrder = new Order('1');
 
