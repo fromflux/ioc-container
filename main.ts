@@ -64,22 +64,22 @@ class Injector {
   }
 }
 
-function inject(...injectables: any[]) {
-  return function (target: Function): void {
-    injectables.forEach(inj => {
-      Object.defineProperty(target.prototype, inj.name, {
-        value: Injector.getInstance().create(inj.type)
-      });
-    });
+function inject(...injectables: any[]): any {
+  return function (constructor: any) {
+    return class extends constructor {
+      constructor(...args: any[]) {
+        super(...args);
+
+        injectables.forEach(inj => {
+          Object.defineProperty(this, inj.name, {
+            value: Injector.getInstance().create(inj.type),
+            enumerable: true,
+          });
+        });
+      }
+    };
   }
 }
-
-// ------------------------------------------
-
-const injector = Injector.getInstance();
-
-injector.register('IShipper', Shipper);
-injector.register('IValidator', Validator);
 
 // ------------------------------------------
 
@@ -102,6 +102,15 @@ class Processor implements IProcessor {
     }
   }
 }
+
+// ------------------------------------------
+
+const injector = Injector.getInstance();
+
+injector.register('IShipper', Shipper);
+injector.register('IValidator', Validator);
+
+// ------------------------------------------
 
 const myProcessor = new Processor('test');
 
