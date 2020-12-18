@@ -53,18 +53,38 @@ class Injector {
   }
 }
 
+function inject<T extends { new(...args: any[]): {} }>(...injectables: any[]) {
+  return (objConstructor: T) => {
+    return class extends objConstructor {
+      constructor(...args: any[]) {
+        super(...args);
+
+        injectables.forEach(inj => {
+          this[inj.name] = injector.create(inj.type);
+        });
+      }
+    }
+  }
+}
+
+
 // ------------------------------------------
 
+@inject(
+  { name: 'validator', type: 'IValidator' },
+  { name: 'shipper', type: 'IShipper' },
+)
 class Processor implements IProcessor {
   private validator: IValidator;
   private shipper: IShipper;
+  private name: string;
 
-  constructor() {
-    this.validator = injector.create('IValidator');
-    this.shipper = injector.create('IShipper');
+  constructor(name: string) {
+    this.name = name;
   }
 
   public process(order: IOrder): void {
+    console.log('processor name: ', this.name)
     if (this.validator.validate(order)) {
       this.shipper.ship(order);
     }
@@ -74,9 +94,12 @@ class Processor implements IProcessor {
 // ------------------------------------------
 
 const injector = new Injector();
+
 injector.register('IShipper', Shipper);
 injector.register('IValidator', Validator);
 
-const myProcessor = new Processor();
+const myProcessor = new Processor('test');
 
-myProcessor.process(new Order('1'));
+const myOrder = new Order('1');
+
+myProcessor.process(myOrder);
