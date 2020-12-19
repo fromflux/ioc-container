@@ -1,5 +1,8 @@
+import Injector, { inject } from '../src/ioc-container';
+import assert from 'assert';
+
 interface IProcessor {
-  process(order: IOrder): void
+  process(order: IOrder): string
 }
 
 interface IValidator {
@@ -7,7 +10,7 @@ interface IValidator {
 }
 
 interface IShipper {
-  ship(order: IOrder): boolean
+  ship(order: IOrder): string
 }
 
 interface IOrder {
@@ -34,50 +37,7 @@ class Validator implements IValidator {
 class Shipper implements IShipper {
   public ship(order: IOrder) {
     console.log('ship order: ', order.id)
-    return order.id !== null;
-  }
-}
-
-// ------------------------------------------
-
-class Injector {
-  private static instance: Injector;
-
-  private map = new Map();
-
-  private constructor() { }
-
-  static getInstance(): Injector {
-    if (!Injector.instance) {
-      Injector.instance = new Injector();
-    }
-    return Injector.instance;
-  }
-
-  public register(interfaceName: string, className: any) {
-    this.map.set(interfaceName, className);
-  }
-
-  public create(interfaceName: string, args?: []) {
-    const Object = this.map.get(interfaceName);
-    return new Object(args);
-  }
-}
-
-function inject(...injectables: any[]): any {
-  return function (constructor: any) {
-    return class extends constructor {
-      constructor(...args: any[]) {
-        super(...args);
-
-        injectables.forEach(inj => {
-          Object.defineProperty(this, inj.name, {
-            value: Injector.getInstance().create(inj.type),
-            enumerable: true,
-          });
-        });
-      }
-    };
+    return order.id;
   }
 }
 
@@ -96,9 +56,9 @@ class Processor implements IProcessor {
     this.name = name;
   }
 
-  public process(order: IOrder): void {
+  public process(order: IOrder): string {
     if (this.validator.validate(order)) {
-      this.shipper.ship(order);
+      return this.shipper.ship(order);
     }
   }
 }
@@ -114,8 +74,8 @@ injector.register('IValidator', Validator);
 
 const myProcessor = new Processor('test');
 
-console.log('myProcessor', myProcessor)
-
 const myOrder = new Order('1');
 
-myProcessor.process(myOrder);
+const orderOutput = myProcessor.process(myOrder);
+
+assert.strictEqual(orderOutput, '1');
